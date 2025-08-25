@@ -25,7 +25,7 @@ struct ChartMath {
         return weekdayChartData
     }
     
-    static func avarageDailyWeightDiffs(for weights: [HealthMetric]) -> [WeekdayChartData] {
+    static func averageDailyWeightDiffs(for weights: [HealthMetric]) -> [WeekdayChartData] {
 
         var diffValues: [(date: Date, value: Double)] = []
         
