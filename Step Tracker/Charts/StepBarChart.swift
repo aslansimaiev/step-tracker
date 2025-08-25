@@ -88,7 +88,7 @@ struct StepBarChart: View {
         }
         .padding()
         .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
-            }
+    }
     
     var annotationView: some View {
         VStack (alignment: .leading){
