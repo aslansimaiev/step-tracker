@@ -13,6 +13,7 @@ struct HealthDataListView: View {
     @State private var isShowingAddData = false
     @State private var addDataDate: Date = .now
     @State private var valueToAdd: String = ""
+    
     var metric: HealthMetricContext
     
     var listData: [HealthMetric] {
@@ -57,18 +58,30 @@ struct HealthDataListView: View {
                     Button("Add Data") {
                         Task {
                             if metric == .steps {
-                                await hkManager.addStepData(for: addDataDate, value: Double(valueToAdd)!)
-                                await hkManager.fetchStepCount()
-                                isShowingAddData = false
+                                do {
+                                    try await hkManager.addStepData(for: addDataDate, value: Double(valueToAdd)!)
+                                    try await hkManager.fetchStepCount()
+                                    isShowingAddData = false
+                                } catch STError.sharingDenied(let quantityType) {
+                                    print("❌ sharing denied for \(quantityType)")
+                                } catch {
+                                    print("❌ Data list View Unable to complete request")
+                                }
+                                
                             } else {
-                                let normalized = valueToAdd.replacingOccurrences(of: ",", with: ".")
-                                guard let val = Double(normalized) else { return }
-                                await hkManager.addWeightData(for: addDataDate, value: val)
-                                await hkManager.fetchWeights()
-                                await hkManager.fetchWeightForDifferentials()
-                                isShowingAddData = false
+                                do {
+                                    let normalized = valueToAdd.replacingOccurrences(of: ",", with: ".")
+                                    guard let val = Double(normalized) else { return }
+                                    try await hkManager.addWeightData(for: addDataDate, value: val)
+                                    try await hkManager.fetchWeights()
+                                    try await hkManager.fetchWeightForDifferentials()
+                                    isShowingAddData = false
+                                } catch STError.sharingDenied(let quantityType) {
+                                    print("❌ sharing denied for \(quantityType)")
+                                } catch {
+                                    print("❌ Data list View Unable to complete request")
+                                }
                             }
-                            
                         }
                     }
                 }
@@ -84,7 +97,7 @@ struct HealthDataListView: View {
 
 #Preview {
     NavigationStack{
-        HealthDataListView(metric: .steps)
+        HealthDataListView(metric: .weight)
             .environment(HealthKitManager())
     }
 }
