@@ -11,8 +11,11 @@ struct HealthDataListView: View {
     @Environment(HealthKitManager.self) private var hkManager
 
     @State private var isShowingAddData = false
+    @State private var isShowingAlert = false
+    @State private var writeError: STError = .noData
     @State private var addDataDate: Date = .now
     @State private var valueToAdd: String = ""
+    
     var metric: HealthMetricContext
     
     var listData: [HealthMetric] {
@@ -52,23 +55,59 @@ struct HealthDataListView: View {
                 }
             }
             .navigationTitle(metric.title)
+            .alert(isPresented: $isShowingAlert, error: writeError){ writeError in
+                switch writeError {
+                case .authNotDetermined, .noData, .unableToCompleteRequest, .invaliedValue:
+                    EmptyView()
+                case .sharingDenied(_):
+                    Button("Settings") {
+                        UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
+                    }
+                    
+                    Button("Cancel", role: .cancel) { }
+                }
+            } message: { writeError in
+                Text(writeError.failureReason)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add Data") {
+                        valueToAdd = valueToAdd.replacingOccurrences(of: ",", with: ".")
+                        guard let value = Double(valueToAdd) else {
+                            writeError = .invaliedValue
+                            isShowingAlert = true
+                            valueToAdd = ""
+                            return
+                        }
                         Task {
                             if metric == .steps {
-                                await hkManager.addStepData(for: addDataDate, value: Double(valueToAdd)!)
-                                await hkManager.fetchStepCount()
-                                isShowingAddData = false
+                                do {
+                                    try await hkManager.addStepData(for: addDataDate, value: value)
+                                    try await hkManager.fetchStepCount()
+                                    isShowingAddData = false
+                                } catch STError.sharingDenied(let quantityType) {
+                                    writeError = .sharingDenied(quantityType: quantityType)
+                                    isShowingAlert = true
+                                } catch {
+                                    writeError = .unableToCompleteRequest
+                                    isShowingAlert = true
+                                }
+                                
                             } else {
-                                let normalized = valueToAdd.replacingOccurrences(of: ",", with: ".")
-                                guard let val = Double(normalized) else { return }
-                                await hkManager.addWeightData(for: addDataDate, value: val)
-                                await hkManager.fetchWeights()
-                                await hkManager.fetchWeightForDifferentials()
-                                isShowingAddData = false
+                                do {
+                                   
+                                    try await hkManager.addWeightData(for: addDataDate, value: value)
+                                    try await hkManager.fetchWeights()
+                                    try await hkManager.fetchWeightForDifferentials()
+                                    isShowingAddData = false
+                                } catch STError.sharingDenied(let quantityType) {
+                                    writeError = .sharingDenied(quantityType: quantityType)
+                                    isShowingAlert = true
+                                } catch {
+                                    writeError = .unableToCompleteRequest
+                                    isShowingAlert = true
+                                }
                             }
-                            
                         }
                     }
                 }
@@ -84,7 +123,7 @@ struct HealthDataListView: View {
 
 #Preview {
     NavigationStack{
-        HealthDataListView(metric: .steps)
+        HealthDataListView(metric: .weight)
             .environment(HealthKitManager())
     }
 }
