@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct HealthDataListView: View {
+    
+    @Environment(HealthKitData.self) private var hkData
     @Environment(HealthKitManager.self) private var hkManager
     
     @State private var isShowingAddData = false
@@ -19,7 +21,7 @@ struct HealthDataListView: View {
     var metric: HealthMetricContext
     
     var listData: [HealthMetric] {
-        metric == .steps ? hkManager.stepData : hkManager.weightData
+        metric == .steps ? hkData.stepData : hkData.weightData
     }
     
     var body: some View {
@@ -96,14 +98,14 @@ struct HealthDataListView: View {
             do {
                 if metric == .steps {
                     try await hkManager.addStepData(for: addDataDate, value: value)
-                    hkManager.stepData = try await hkManager.fetchStepCount()
+                    hkData.stepData = try await hkManager.fetchStepCount()
                 } else {
                     try await hkManager.addWeightData(for: addDataDate, value: value)
                     async let weightForLineChart = hkManager.fetchWeights(daysBack: 28)
                     async let weightForDiffBarChart = hkManager.fetchWeights(daysBack: 29)
                     
-                    hkManager.weightData = try await weightForLineChart
-                    hkManager.weightDiffData = try await weightForDiffBarChart
+                    hkData.weightData = try await weightForLineChart
+                    hkData.weightDiffData = try await weightForDiffBarChart
                 }
                 isShowingAddData = false
             } catch STError.sharingDenied(let quantityType) {
