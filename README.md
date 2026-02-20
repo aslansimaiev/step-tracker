@@ -1,2 +1,2 @@
 # step-tracket
-HealthKit Step Tracking Portfolio Project
+HealthKit Step Tracking (followed Sean Allen Course)
